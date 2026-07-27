@@ -30,11 +30,9 @@ const ctx = {
   go(id) { location.hash = `#/${id}`; },
 };
 
-function brandMark(sub = true) {
-  return el("div.brand", {}, [
-    el("div.mark", { text: "₱" }),
-    el("div", {}, [el("div.name", { text: "Kwenta" }), sub ? el("div.sub", { text: "personal finance" }) : null]),
-  ]);
+const LOGO = "assets/logo/logo.svg";
+function brandMark() {
+  return el("div.brand", {}, [el("img.brand-logo", { src: LOGO, alt: "Kwenta — personal finance" })]);
 }
 
 // ---------- Auth screen ----------
@@ -134,7 +132,7 @@ async function renderApp(user) {
   ]);
 
   const topbar = el("header.topbar", {}, [
-    brandMark(false),
+    brandMark(),
     el("button.btn-icon.btn-quiet", { type: "button", "aria-label": "Sign out", html: icons.logout, onClick: signOut }),
   ]);
 
