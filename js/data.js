@@ -21,7 +21,7 @@ const TABLES = ["salary", "expenses", "loans", "loan_payments", "pautang", "savi
 // PostgREST can serialize numeric columns as strings — coerce so all
 // downstream arithmetic (sums, reduces) stays numeric, never concatenated.
 const NUMERIC_FIELDS = {
-  salary: ["gross", "monthly_gross"],
+  salary: ["gross", "monthly_gross", "allowance", "incentive"],
   expenses: ["amount"],
   loans: ["original_amount"],
   loan_payments: ["amount"],
@@ -199,12 +199,16 @@ export const savingsBalance = () =>
   db.savings.reduce((s, r) => s + (r.deposit || 0) - (r.withdrawal || 0), 0);
 
 export const salaryNet = (row) => computeCutoff(row.gross, row.monthly_gross);
+// Total actually received: net take-home + optional (non-taxed) allowance & incentive.
+export const salaryReceived = (row) => salaryNet(row).net + (row.allowance || 0) + (row.incentive || 0);
 
 export function monthlySummary(mKey) {
   const inMonth = (d) => monthKey(d) === mKey;
   const salaryRows = db.salary.filter((s) => inMonth(s.pay_date));
-  const netIncome = salaryRows.reduce((s, r) => s + salaryNet(r).net, 0);
+  const netIncome = salaryRows.reduce((s, r) => s + salaryReceived(r), 0);
   const grossIncome = salaryRows.reduce((s, r) => s + r.gross, 0);
+  const allowanceTotal = salaryRows.reduce((s, r) => s + (r.allowance || 0), 0);
+  const incentiveTotal = salaryRows.reduce((s, r) => s + (r.incentive || 0), 0);
   const monthExpenses = db.expenses.filter((e) => inMonth(e.date));
   const expenseTotal = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const byCategory = {};
@@ -214,7 +218,7 @@ export function monthlySummary(mKey) {
   const savedThisMonth = db.savings.filter((r) => inMonth(r.date)).reduce((s, r) => s + (r.deposit || 0) - (r.withdrawal || 0), 0);
   const leftOver = netIncome - expenseTotal;
   const savingsRate = netIncome > 0 ? (savedThisMonth / netIncome) * 100 : 0;
-  return { mKey, salaryRows, monthExpenses, netIncome, grossIncome, expenseTotal, byCategory, byMerchant, savedThisMonth, leftOver, savingsRate };
+  return { mKey, salaryRows, monthExpenses, netIncome, grossIncome, allowanceTotal, incentiveTotal, expenseTotal, byCategory, byMerchant, savedThisMonth, leftOver, savingsRate };
 }
 
 export function monthsWithData() {

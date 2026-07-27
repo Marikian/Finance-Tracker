@@ -35,7 +35,7 @@ export async function exportWorkbook() {
     { Metric: "Loans still owed", Value: owed },
     { Metric: "Pautang outstanding", Value: receivable },
   ]);
-  sheet("Salary", DB.Salary.all().map((r) => { const c = DB.salaryNet(r); return { "Pay date": r.pay_date, Period: r.period, Gross: r.gross, SSS: c.sss, PhilHealth: c.philhealth, "Pag-IBIG": c.pagibig, "Withholding tax": c.withholdingTax, Net: c.net }; }));
+  sheet("Salary", DB.Salary.all().map((r) => { const c = DB.salaryNet(r); return { "Pay date": r.pay_date, Period: r.period, Gross: r.gross, SSS: c.sss, PhilHealth: c.philhealth, "Pag-IBIG": c.pagibig, "Withholding tax": c.withholdingTax, Net: c.net, Allowance: r.allowance || 0, Incentive: r.incentive || 0, "Take-home": DB.salaryReceived(r) }; }));
   sheet("Expenses", DB.Expenses.all().slice().sort((a, b) => a.date.localeCompare(b.date)).map((e) => ({ Date: e.date, Item: e.item, Category: e.category, Merchant: e.merchant, Amount: e.amount, Payment: e.payment_method, Recurring: e.recurring ? "Yes" : "", Notes: e.notes })));
   sheet("Loans", DB.Loans.all().map((l) => ({ Lender: l.lender, Reason: l.reason, "Original amount": l.original_amount, Balance: DB.loanBalance(l), "Next due": l.next_due || "" })));
   sheet("Loan payments", DB.LoanPayments.all().map((p) => { const loan = DB.Loans.all().find((l) => l.id === p.loan_id); return { Loan: loan ? loan.reason : p.loan_id, Date: p.date, Amount: p.amount }; }));
@@ -51,7 +51,11 @@ export async function exportWorkbook() {
 // ---- Flat transaction report: Name · Date · Amount ----
 export function buildTransactions() {
   const t = [];
-  for (const s of DB.Salary.all()) t.push({ Name: `Salary — ${s.period || "cutoff"}`, Date: s.pay_date, Amount: round2(DB.salaryNet(s).net) });
+  for (const s of DB.Salary.all()) {
+    t.push({ Name: `Salary — ${s.period || "cutoff"}`, Date: s.pay_date, Amount: round2(DB.salaryNet(s).net) });
+    if (s.allowance) t.push({ Name: `Allowance — ${s.period || "cutoff"}`, Date: s.pay_date, Amount: round2(s.allowance) });
+    if (s.incentive) t.push({ Name: `Incentive — ${s.period || "cutoff"}`, Date: s.pay_date, Amount: round2(s.incentive) });
+  }
   for (const e of DB.Expenses.all()) t.push({ Name: `${e.item}${e.category ? ` (${e.category})` : ""}`, Date: e.date, Amount: -round2(e.amount) });
   for (const p of DB.Pautang.all()) t.push({ Name: `Pautang to ${p.borrower}`, Date: p.date_lent, Amount: -round2(p.amount) });
   for (const lp of DB.LoanPayments.all()) { const loan = DB.Loans.all().find((l) => l.id === lp.loan_id); t.push({ Name: `Loan payment${loan ? ` — ${loan.reason}` : ""}`, Date: lp.date, Amount: -round2(lp.amount) }); }

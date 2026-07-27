@@ -13,8 +13,10 @@ export function render(root, ctx) {
   const layout = el("div.salary-layout");
 
   // --- Live calculator ---
-  const grossInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "22,500.00", value: "22500" });
+  const grossInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "22,500.00" });
   const monthlyInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "auto (cutoff × 2)" });
+  const allowanceInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "0.00" });
+  const incentiveInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "0.00" });
   const periodSel = el("select.select", {}, [
     el("option", { value: "1st cutoff", text: "1st cutoff (15th)" }),
     el("option", { value: "2nd cutoff", text: "2nd cutoff (30th)" }),
@@ -27,16 +29,20 @@ export function render(root, ctx) {
   const recalc = () => {
     const gross = parseFloat(grossInput.value) || 0;
     const monthly = parseFloat(monthlyInput.value) || 0;
+    const allowance = parseFloat(allowanceInput.value) || 0;
+    const incentive = parseFloat(incentiveInput.value) || 0;
     const r = computeCutoff(gross, monthly || undefined);
-    paintBreakdown(breakdown, r);
-    paintNet(netHero, r);
+    paintBreakdown(breakdown, r, allowance, incentive);
+    paintNet(netHero, r, allowance, incentive);
   };
-  [grossInput, monthlyInput].forEach((i) => i.addEventListener("input", recalc));
+  [grossInput, monthlyInput, allowanceInput, incentiveInput].forEach((i) => i.addEventListener("input", recalc));
 
   const calcCard = card("Calculate a cutoff", [
     el("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginBottom: "var(--space-5)" } }, [
       field("Cutoff gross", wrapAmount(grossInput), "What you're paid this cutoff"),
       field("Monthly gross", wrapAmount(monthlyInput), "Optional — drives SSS/PhilHealth/Pag-IBIG"),
+      field("Allowance", wrapAmount(allowanceInput), "Optional — added, not taxed"),
+      field("Incentive", wrapAmount(incentiveInput), "Optional — bonus / performance"),
       field("Period", periodSel),
       field("Pay date", dateInput),
     ]),
@@ -52,6 +58,8 @@ export function render(root, ctx) {
             period: periodSel.value,
             gross,
             monthly_gross: parseFloat(monthlyInput.value) || gross * 2,
+            allowance: parseFloat(allowanceInput.value) || 0,
+            incentive: parseFloat(incentiveInput.value) || 0,
           });
           toast("Cutoff saved");
           ctx.rerender();
@@ -69,7 +77,7 @@ export function render(root, ctx) {
     rows.length
       ? el("table.table", {}, [
           el("thead", {}, el("tr", {}, [
-            th("Pay date"), th("Period"), th("Gross", true), th("Deductions", true), th("Net", true), el("th", { style: { width: "70px" } }),
+            th("Pay date"), th("Period"), th("Gross", true), th("Deductions", true), th("Take-home", true), el("th", { style: { width: "70px" } }),
           ])),
           el("tbody", {}, rows.map((row) => salaryRow(row, ctx))),
         ])
@@ -81,46 +89,63 @@ export function render(root, ctx) {
 
 function salaryRow(row, ctx) {
   const r = DB.salaryNet(row);
+  const received = DB.salaryReceived(row);
+  const extras = (row.allowance || 0) + (row.incentive || 0);
   return el("tr", {}, [
     el("td", { text: fmtDateLong(row.pay_date) }),
-    el("td", {}, [el("span.chip", { text: row.period })]),
+    el("td", {}, [el("span.chip", { text: row.period }), extras > 0 ? el("span.chip.solid-pos", { style: { marginLeft: "6px" }, text: "+extras" }) : null]),
     el("td.right.amount", { text: money(r.gross) }),
     el("td.right.amount.muted", { text: money(r.contributions + r.withholdingTax) }),
-    el("td.right.amount", { style: { fontWeight: "650" }, text: money(r.net) }),
+    el("td.right.amount", { style: { fontWeight: "650" }, title: extras > 0 ? `Net ${money(r.net)} + allowance/incentive ${money(extras)}` : "", text: money(received) }),
     el("td.right", {}, [rowActions(null, async () => {
-      if (await confirmDialog({ title: "Delete cutoff?", message: `${fmtDateLong(row.pay_date)} — ${money(r.net)} net. This can't be undone.` })) {
+      if (await confirmDialog({ title: "Delete cutoff?", message: `${fmtDateLong(row.pay_date)} — ${money(received)} take-home. This can't be undone.` })) {
         await DB.Salary.remove(row.id); toast("Cutoff deleted"); ctx.rerender();
       }
     })]),
   ]);
 }
 
-function paintBreakdown(node, r) {
-  node.replaceChildren(
+function paintBreakdown(node, r, allowance = 0, incentive = 0) {
+  const extras = allowance > 0 || incentive > 0;
+  const rows = [
     bRow("Gross pay", r.gross),
     bRow("SSS", -r.sss, true),
     bRow("PhilHealth", -r.philhealth, true),
     bRow("Pag-IBIG", -r.pagibig, true),
     bRow("Withholding tax", -r.withholdingTax, true),
-    bRowTotal("Net take-home", r.net),
-  );
+  ];
+  if (!extras) {
+    rows.push(bRowTotal("Net take-home", r.net));
+  } else {
+    rows.push(bRowSubtotal("Net take-home", r.net));
+    if (allowance > 0) rows.push(bRowAdd("Allowance", allowance));
+    if (incentive > 0) rows.push(bRowAdd("Incentive", incentive));
+    rows.push(bRowTotal("Total received", r.net + allowance + incentive));
+  }
+  node.replaceChildren(...rows);
 }
-function paintNet(node, r) {
+function paintNet(node, r, allowance = 0, incentive = 0) {
+  const extras = allowance + incentive;
+  const total = r.net + extras;
   node.replaceChildren(
-    el("div.n-label", { text: "Net take-home" }),
-    el("div.n-value.fig", { text: money(r.net) }),
-    el("div.n-meta", { text: `Gross ${money(r.gross)} · deductions ${money(r.contributions + r.withholdingTax)}` }),
-    el("div.gauge", {}, gaugeSegments(r)),
+    el("div.n-label", { text: extras > 0 ? "Total received" : "Net take-home" }),
+    el("div.n-value.fig", { text: money(total) }),
+    el("div.n-meta", { text: extras > 0
+      ? `Net ${money(r.net)} + allowance & incentive ${money(extras)}`
+      : `Gross ${money(r.gross)} · deductions ${money(r.contributions + r.withholdingTax)}` }),
+    el("div.gauge", {}, gaugeSegments(r, allowance, incentive)),
   );
 }
-function gaugeSegments(r) {
-  const total = r.gross || 1;
+function gaugeSegments(r, allowance = 0, incentive = 0) {
+  const extras = allowance + incentive;
+  const total = (r.gross + extras) || 1;
   const seg = (val, color) => el("span", { style: { width: `${(val / total) * 100}%`, background: color } });
   return [
     seg(r.net, "var(--positive)"),
     seg(r.contributions, "var(--cat-4)"),
     seg(r.withholdingTax, "var(--accent)"),
-  ];
+    extras > 0 ? seg(extras, "var(--cat-2)") : null,
+  ].filter(Boolean);
 }
 
 function bRow(label, amount, sub = false) {
@@ -133,6 +158,18 @@ function bRowTotal(label, amount) {
   return el("div.b-row.total", {}, [
     el("span.b-label", { text: label }),
     el("span.b-amount.fig", { style: { fontSize: "var(--text-lg)" }, text: money(amount) }),
+  ]);
+}
+function bRowSubtotal(label, amount) {
+  return el("div.b-row.subtotal", {}, [
+    el("span.b-label", { style: { color: "var(--ink)", fontWeight: "600" }, text: label }),
+    el("span.b-amount", { style: { fontWeight: "600" }, text: money(amount) }),
+  ]);
+}
+function bRowAdd(label, amount) {
+  return el("div.b-row", {}, [
+    el("span.b-label", { text: label }),
+    el("span.b-amount.pos", { text: "+ " + money(amount) }),
   ]);
 }
 function field(label, control, hint) {
