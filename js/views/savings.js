@@ -2,7 +2,7 @@ import { el, toast, openForm, confirmDialog } from "../lib/ui.js";
 import { icons } from "../lib/icons.js";
 import { money, money0, pct, fmtDateLong, todayISO } from "../lib/format.js";
 import * as DB from "../data.js";
-import { pageHead, card, addButton, rowActions, emptyState } from "./shared.js";
+import { pageHead, card, addButton, rowActions, emptyState, scrollTable } from "./shared.js";
 
 export const meta = { id: "savings", label: "Savings", icon: icons.savings };
 
@@ -43,10 +43,10 @@ export function render(root, ctx) {
 
   root.append(card("Movements",
     entries.length
-      ? el("table.table", {}, [
+      ? scrollTable(el("table.table", {}, [
           el("thead", {}, el("tr", {}, [th("Date"), th("Account"), th("In", true), th("Out", true), th("Balance", true), el("th")])),
           el("tbody", {}, withRunning.map((e) => row(e, ctx))),
-        ])
+        ]))
       : emptyState("No savings yet", "Add your first deposit to start tracking.", addButton("Add entry", () => form(ctx)))));
 }
 

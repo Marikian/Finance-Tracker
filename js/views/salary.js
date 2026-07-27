@@ -3,7 +3,7 @@ import { icons } from "../lib/icons.js";
 import { money, fmtDateLong, todayISO } from "../lib/format.js";
 import * as DB from "../data.js";
 import { computeCutoff } from "../salary.js";
-import { pageHead, card, rowActions, emptyState } from "./shared.js";
+import { pageHead, card, rowActions, emptyState, scrollTable } from "./shared.js";
 
 export const meta = { id: "salary", label: "Salary", icon: icons.salary };
 
@@ -38,7 +38,7 @@ export function render(root, ctx) {
   [grossInput, monthlyInput, allowanceInput, incentiveInput].forEach((i) => i.addEventListener("input", recalc));
 
   const calcCard = card("Calculate a cutoff", [
-    el("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginBottom: "var(--space-5)" } }, [
+    el("div.calc-grid", {}, [
       field("Cutoff gross", wrapAmount(grossInput), "What you're paid this cutoff"),
       field("Monthly gross", wrapAmount(monthlyInput), "Optional — drives SSS/PhilHealth/Pag-IBIG"),
       field("Allowance", wrapAmount(allowanceInput), "Optional — added, not taxed"),
@@ -75,12 +75,12 @@ export function render(root, ctx) {
   const rows = DB.Salary.all().slice().sort((a, b) => b.pay_date.localeCompare(a.pay_date));
   const listCard = card("Saved cutoffs",
     rows.length
-      ? el("table.table", {}, [
+      ? scrollTable(el("table.table", {}, [
           el("thead", {}, el("tr", {}, [
             th("Pay date"), th("Period"), th("Gross", true), th("Deductions", true), th("Take-home", true), el("th", { style: { width: "70px" } }),
           ])),
           el("tbody", {}, rows.map((row) => salaryRow(row, ctx))),
-        ])
+        ]))
       : emptyState("No cutoffs saved", "Use the calculator above to save your first payslip."));
   root.append(listCard);
 

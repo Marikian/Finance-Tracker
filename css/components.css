@@ -95,6 +95,10 @@
 .progress.pos > span { background: var(--positive); }
 
 /* --- Tables --- */
+/* Wide tables scroll inside their own container so they never overflow the
+   page on small screens. Momentum scroll on touch; columns keep a min width. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll .table { min-width: 34rem; }
 .table { width: 100%; border-collapse: collapse; }
 .table th {
   text-align: left; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.02em;
@@ -143,6 +147,7 @@ dialog.modal[open]::backdrop { animation: fade var(--dur-2) ease; }
 .modal-foot { display: flex; gap: var(--space-3); justify-content: flex-end; padding: var(--space-4) var(--space-5) var(--space-5); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 .form-grid .span-2 { grid-column: 1 / -1; }
+@media (max-width: 460px) { .form-grid { grid-template-columns: 1fr; } }
 
 /* --- Toast --- */
 .toast-wrap {

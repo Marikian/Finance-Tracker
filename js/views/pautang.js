@@ -2,7 +2,7 @@ import { el, toast, openForm, confirmDialog } from "../lib/ui.js";
 import { icons } from "../lib/icons.js";
 import { money, money0, fmtDate, todayISO } from "../lib/format.js";
 import * as DB from "../data.js";
-import { pageHead, card, addButton, rowActions, emptyState } from "./shared.js";
+import { pageHead, card, addButton, rowActions, emptyState, scrollTable } from "./shared.js";
 
 export const meta = { id: "pautang", label: "Pautang", icon: icons.pautang };
 
@@ -22,10 +22,10 @@ export function render(root, ctx) {
 
   root.append(card("Who owes you",
     list.length
-      ? el("table.table", {}, [
+      ? scrollTable(el("table.table", {}, [
           el("thead", {}, el("tr", {}, [th("Borrower"), th("Lent"), th("Amount", true), th("Repaid", true), th("Balance", true), th("Status"), el("th")])),
           el("tbody", {}, list.map((p) => row(p, ctx))),
-        ])
+        ]))
       : emptyState("No pautang", "Nobody owes you right now.", addButton("Add pautang", () => form(ctx)))));
 }
 

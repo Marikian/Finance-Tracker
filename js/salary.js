@@ -51,6 +51,8 @@ export function withholdingTax(taxable) {
  */
 export function computeCutoff(cutoffGross, monthlyGross) {
   const gross = Number(cutoffGross) || 0;
+  // No salary entered → no deductions (don't apply the MSC floor to ₱0).
+  if (gross <= 0) return { gross: 0, sss: 0, philhealth: 0, pagibig: 0, contributions: 0, taxable: 0, withholdingTax: 0, net: 0 };
   const monthly = Number(monthlyGross) || gross * 2;
 
   const m = monthlyContributions(monthly);

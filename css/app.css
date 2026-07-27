@@ -106,6 +106,8 @@
 /* --- Salary --- */
 .salary-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: var(--space-5); align-items: start; }
 @media (max-width: 860px) { .salary-layout { grid-template-columns: 1fr; } }
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-5); }
+@media (max-width: 460px) { .calc-grid { grid-template-columns: 1fr; } }
 .breakdown { display: flex; flex-direction: column; }
 .breakdown .b-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) 0; border-bottom: 1px solid var(--hairline); }
 .breakdown .b-row.total { border-top: 2px solid var(--ink); border-bottom: none; margin-top: var(--space-2); padding-top: var(--space-4); }

@@ -45,6 +45,9 @@ export function card(title, bodyChildren, headRight) {
   ]);
 }
 
+// Wrap a wide table so it scrolls horizontally on small screens instead of overflowing.
+export const scrollTable = (tableEl) => el("div.table-scroll", {}, [tableEl]);
+
 export function rowActions(onEdit, onDelete) {
   return el("div.row-actions", {}, [
     onEdit && el("button.btn-icon.btn-quiet.btn-sm", { type: "button", "aria-label": "Edit", html: icons.edit, onClick: onEdit }),

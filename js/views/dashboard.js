@@ -5,6 +5,7 @@ import * as DB from "../data.js";
 import { donut, bars, line, CAT_COLORS } from "../charts.js";
 import { openExportMenu } from "../export.js";
 import { USING_SUPABASE } from "../config.js";
+import { countUp } from "../lib/anim.js";
 import { pageHead, monthNav, card } from "./shared.js";
 
 export const meta = { id: "dashboard", label: "Dashboard", icon: icons.dashboard };
@@ -22,14 +23,15 @@ export function render(root, ctx) {
   // --- KPI row (each tile jumps to its detail view) ---
   const kpis = el("div.kpi-grid");
   kpis.append(
-    kpi("Net income", money(s.netIncome), `${s.salaryRows.length} cutoff${s.salaryRows.length === 1 ? "" : "s"} recorded`, { feature: true, go: "salary" }),
-    kpi("Expenses", money(s.expenseTotal), `${s.monthExpenses.length} transactions`, { go: "expenses" }),
-    kpi("Saved", money(s.savedThisMonth), s.savedThisMonth >= 0 ? "added this month" : "net withdrawal", { go: "savings" }),
-    kpi("Left over", money(s.leftOver), s.leftOver >= 0 ? "income minus spend" : "spent beyond salary so far", { negative: s.leftOver < 0, go: "expenses" }),
-    kpi("Savings rate", pct(s.savingsRate), "of net income kept", { go: "savings" }),
+    kpi("Net income", s.netIncome, money, `${s.salaryRows.length} cutoff${s.salaryRows.length === 1 ? "" : "s"} recorded`, { feature: true, go: "salary" }),
+    kpi("Expenses", s.expenseTotal, money, `${s.monthExpenses.length} transactions`, { go: "expenses" }),
+    kpi("Saved", s.savedThisMonth, money, s.savedThisMonth >= 0 ? "added this month" : "net withdrawal", { go: "savings" }),
+    kpi("Left over", s.leftOver, money, s.leftOver >= 0 ? "income minus spend" : "spent beyond salary so far", { negative: s.leftOver < 0, go: "expenses" }),
+    kpi("Savings rate", s.savingsRate, pct, "of net income kept", { go: "savings" }),
   );
   bindKpiNav(kpis, ctx);
   root.append(kpis);
+  requestAnimationFrame(() => kpis.querySelectorAll(".k-value").forEach((n) => countUp(n, Number(n.dataset.countTo), n._fmt)));
 
   // --- Insight line ---
   root.append(insight(s));
@@ -75,13 +77,14 @@ export function render(root, ctx) {
   root.append(grid);
 }
 
-function kpi(label, value, meta, { feature = false, negative = false, go = null } = {}) {
-  const node = el(`div.kpi${feature ? ".feature" : ""}${go ? ".clickable" : ""}`, go ? { role: "link", tabindex: "0", dataset: { go }, "aria-label": `${label}: ${value}. View ${go}.` } : {}, [
+function kpi(label, value, format, meta, { feature = false, negative = false, go = null } = {}) {
+  const valNode = el(`div.k-value.fig${negative && !feature ? ".neg" : ""}`, { text: format(value) });
+  valNode.dataset.countTo = value; valNode._fmt = format;
+  return el(`div.kpi${feature ? ".feature" : ""}${go ? ".clickable" : ""}`, go ? { role: "link", tabindex: "0", dataset: { go }, "aria-label": `${label}: ${format(value)}. View ${go}.` } : {}, [
     el("div.k-label", { text: label }),
-    el(`div.k-value.fig${negative && !feature ? ".neg" : ""}`, { text: value }),
+    valNode,
     el("div.k-meta", { text: meta }),
   ]);
-  return node;
 }
 
 // Wire clickable KPIs to navigation (click + Enter/Space).
