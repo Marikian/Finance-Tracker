@@ -8,9 +8,7 @@ import { pageHead, card, rowActions, emptyState, scrollTable } from "./shared.js
 export const meta = { id: "salary", label: "Salary", icon: icons.salary };
 
 export function render(root, ctx) {
-  root.append(pageHead("Salary", "Pick how you're paid — the calculator adjusts the gross and deductions to match.", [
-    el("button.btn.btn-ghost", { type: "button", text: DB.profile().customDeductions ? "Deductions: fixed" : "My deductions", onClick: () => deductionsForm(ctx) }),
-  ]));
+  root.append(pageHead("Salary", "Your take-home, per cutoff or per month."));
 
   const layout = el("div.salary-layout");
 
@@ -19,12 +17,12 @@ export function render(root, ctx) {
   const allowanceInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "0.00" });
   const incentiveInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "0.00" });
   const modeSel = el("select.select", {}, [
-    el("option", { value: "split", text: "Split evenly across the 15th & 30th" }),
-    el("option", { value: "monthly", text: "Whole month (one pay period)" }),
+    el("option", { value: "split", text: "Split · cutoffs" }),
+    el("option", { value: "monthly", text: "Whole month" }),
   ]);
   const periodSel = el("select.select", {}, [
-    el("option", { value: "1st cutoff", text: "1st cutoff (15th)" }),
-    el("option", { value: "2nd cutoff", text: "2nd cutoff (30th)" }),
+    el("option", { value: "1st cutoff", text: "1st cutoff · 15th" }),
+    el("option", { value: "2nd cutoff", text: "2nd cutoff · 30th" }),
   ]);
   const dateInput = el("input.input", { type: "date", value: todayISO() });
 
@@ -36,9 +34,7 @@ export function render(root, ctx) {
   const syncLabel = () => {
     const m = modeSel.value;
     grossLabel.textContent = "Monthly gross";
-    grossHint.textContent = m === "monthly"
-      ? "Computed as one whole month"
-      : "Split across the 15th & 30th — half each cutoff";
+    grossHint.textContent = m === "monthly" ? "Whole month" : "Split · half each cutoff";
     periodSel.parentElement && (periodSel.parentElement.style.display = m === "monthly" ? "none" : "");
   };
 
@@ -56,19 +52,26 @@ export function render(root, ctx) {
 
   const grossField = el("div.field", {}, [grossLabel, wrapAmount(grossInput), grossHint]);
 
-  const calcCard = card("Calculate your pay", [
+  // Deductions control, right under the gross input.
+  const dedRow = el("div", { style: { gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)" } }, [
+    el("span.hint", { text: DB.profile().customDeductions ? "Deductions: my fixed amounts" : "Deductions: auto (2026)" }),
+    el("button.btn.btn-quiet.btn-sm", { type: "button", html: `${icons.edit}<span>Edit</span>`, onClick: () => deductionsForm(ctx) }),
+  ]);
+
+  const calcCard = card("Calculator", [
     el("div.calc-grid", {}, [
-      el("div.field", { style: { gridColumn: "1 / -1" } }, [el("label", { text: "How are you paid?" }), modeSel]),
+      el("div.field", { style: { gridColumn: "1 / -1" } }, [el("label", { text: "Pay period" }), modeSel]),
       grossField,
-      field("Allowance", wrapAmount(allowanceInput), "Optional — this cutoff, not taxed"),
-      field("Incentive", wrapAmount(incentiveInput), "Optional — bonus / performance"),
+      dedRow,
+      field("Allowance", wrapAmount(allowanceInput), "Optional"),
+      field("Incentive", wrapAmount(incentiveInput), "Optional"),
       field("Period", periodSel),
       field("Pay date", dateInput),
     ]),
     breakdown,
     el("div", { style: { marginTop: "var(--space-5)" } }, [
       el("button.btn.btn-primary", {
-        type: "button", html: `${icons.plus}<span>Save this entry</span>`,
+        type: "button", html: `${icons.plus}<span>Save</span>`,
         onClick: async () => {
           const amount = parseFloat(grossInput.value) || 0;
           if (amount <= 0) return toast("Enter your gross first", "err");
@@ -115,15 +118,15 @@ function deductionsForm(ctx) {
     title: "My deductions",
     submitLabel: "Save",
     fields: [
-      { name: "mode", label: "How to deduct", type: "select", span: 2,
+      { name: "mode", label: "Deductions", type: "select", span: 2,
         options: [
-          { value: "auto", label: "Auto-compute (2026 statutory)" },
-          { value: "fixed", label: "Use my fixed monthly amounts" },
+          { value: "auto", label: "Auto · 2026" },
+          { value: "fixed", label: "Fixed amounts" },
         ], value: p.customDeductions ? "fixed" : "auto",
-        hint: "Enter your MONTHLY totals — split-evenly mode halves them per cutoff." },
-      { name: "sss", label: "SSS (monthly)", type: "amount", value: p.deductions.sss || "" },
-      { name: "philhealth", label: "PhilHealth (monthly)", type: "amount", value: p.deductions.philhealth || "" },
-      { name: "pagibig", label: "Pag-IBIG (monthly)", type: "amount", value: p.deductions.pagibig || "" },
+        hint: "Monthly totals · split mode halves them" },
+      { name: "sss", label: "SSS", type: "amount", value: p.deductions.sss || "" },
+      { name: "philhealth", label: "PhilHealth", type: "amount", value: p.deductions.philhealth || "" },
+      { name: "pagibig", label: "Pag-IBIG", type: "amount", value: p.deductions.pagibig || "" },
     ],
     onSubmit: async (v) => {
       await DB.setDeductions({ custom: v.mode === "fixed", sss: parseFloat(v.sss) || 0, philhealth: parseFloat(v.philhealth) || 0, pagibig: parseFloat(v.pagibig) || 0 });
