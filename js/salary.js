@@ -106,11 +106,12 @@ export function computeSalary(amount, mode = "split", override = null) {
 
   const monthly = mode === "cutoff" ? a * 2 : a; // monthly figure for MSC/caps
   const half = mode === "split";                  // split → per-cutoff (halved)
-  // Monthly contributions: the user's fixed amounts if given, else statutory.
+  // Auto = statutory monthly contributions, halved per cutoff in split mode.
+  // Fixed = the user's EXACT per-pay amounts, used as typed (never halved).
   const mc = override
     ? { sss: Number(override.sss) || 0, philhealth: Number(override.philhealth) || 0, pagibig: Number(override.pagibig) || 0 }
     : monthlyContributions(monthly);
-  const div = half ? 2 : 1;
+  const div = override ? 1 : (half ? 2 : 1);
   const sss = round2(mc.sss / div);
   const philhealth = round2(mc.philhealth / div);
   const pagibig = round2(mc.pagibig / div);

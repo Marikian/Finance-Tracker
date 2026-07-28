@@ -123,7 +123,18 @@ function deductionsForm(ctx) {
     field("SSS", wrapAmount(sssIn)),
     field("PhilHealth", wrapAmount(phIn)),
     field("Pag-IBIG", wrapAmount(pagIn)),
-    el("span.hint", { text: "Monthly totals · split mode halves them per cutoff" }),
+    el("span.hint", { text: "The exact amount deducted from each pay." }),
+  ]);
+
+  // Auto tab shows the formula the system applies (no input needed).
+  const autoLine = (k, v) => el("div", { style: { display: "flex", justifyContent: "space-between", padding: "var(--space-2) 0", borderBottom: "1px solid var(--hairline)", fontSize: "var(--text-sm)" } }, [
+    el("span", { text: k }), el("span.muted", { text: v }),
+  ]);
+  const autoNote = el("div", { style: { marginTop: "var(--space-4)" } }, [
+    el("p.muted", { style: { fontSize: "var(--text-sm)", marginBottom: "var(--space-2)" }, text: "Computed for you from the 2026 rates:" }),
+    autoLine("SSS", "5% of MSC · ₱250–₱1,750"),
+    autoLine("PhilHealth", "2.5% · ₱250–₱2,500"),
+    autoLine("Pag-IBIG", "2% · up to ₱200"),
   ]);
 
   const tabAuto = el("button.auth-tab", { type: "button", text: "Auto" });
@@ -131,6 +142,7 @@ function deductionsForm(ctx) {
   const sync = () => {
     tabAuto.classList.toggle("active", mode === "auto");
     tabFixed.classList.toggle("active", mode === "fixed");
+    autoNote.hidden = mode !== "auto";
     fixedFields.hidden = mode !== "fixed";
   };
   tabAuto.addEventListener("click", () => { mode = "auto"; sync(); });
@@ -144,6 +156,7 @@ function deductionsForm(ctx) {
     ]),
     el("div.modal-body", { style: { paddingBottom: "var(--space-4)" } }, [
       el("div.auth-tabs", { role: "tablist", style: { marginBottom: "0" } }, [tabAuto, tabFixed]),
+      autoNote,
       fixedFields,
     ]),
     el("div.modal-foot", {}, [
