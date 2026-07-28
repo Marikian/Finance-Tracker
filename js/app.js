@@ -21,6 +21,12 @@ const VIEWS = [dashboard, salary, expenses, loans, pautang, savings, calendar];
 const byId = Object.fromEntries(VIEWS.map((v) => [v.meta.id, v]));
 const app = document.getElementById("app");
 
+// Captured before supabase-js consumes the URL. After email confirmation the
+// redirect carries either our own ?confirmed=1 marker OR Supabase's default
+// hash (…#access_token=…&type=signup) — detect both so the confirmation page
+// shows whether or not the redirect URL is allow-listed.
+const CONFIRM_HINT = new URLSearchParams(location.search).has("confirmed") || /type=signup/.test(location.hash);
+
 const state = { month: DB.monthsWithData()[0] || monthKey(todayISO()), view: "dashboard" };
 
 const ctx = {
@@ -197,14 +203,13 @@ function renderConfirmed(user) {
 
 // ---------- Start ----------
 (async function start() {
-  const justConfirmed = new URLSearchParams(location.search).has("confirmed");
   try {
     const user = await Auth.getUser();
-    if (justConfirmed) { cleanConfirmParam(); renderConfirmed(user); return; }
+    if (CONFIRM_HINT) { cleanConfirmParam(); renderConfirmed(user); return; }
     if (user) { await DB.sync(); await renderApp(user); }
     else renderAuth("signin");
   } catch {
-    if (justConfirmed) { cleanConfirmParam(); renderConfirmed(null); }
+    if (CONFIRM_HINT) { cleanConfirmParam(); renderConfirmed(null); }
     else renderAuth("signin");
   }
 })();
