@@ -36,13 +36,27 @@ export function monthlyContributions(monthlyGross) {
   return { sss, philhealth, pagibig, total: round2(sss + philhealth + pagibig) };
 }
 
-/** BIR withholding on a per-cutoff taxable amount. */
-export function withholdingTax(taxable) {
+// BIR withholding — MONTHLY compensation table (for whole-month computation).
+export const TAX_BRACKETS_MONTHLY = [
+  { over: 0,       base: 0,         rate: 0    },
+  { over: 20833,   base: 0,         rate: 0.15 },
+  { over: 33333,   base: 1875.00,   rate: 0.20 },
+  { over: 66667,   base: 8541.80,   rate: 0.25 },
+  { over: 166667,  base: 33541.80,  rate: 0.30 },
+  { over: 666667,  base: 183541.80, rate: 0.35 },
+];
+
+const applyBrackets = (taxable, brackets) => {
   const t = Number(taxable) || 0;
-  let b = TAX_BRACKETS[0];
-  for (const br of TAX_BRACKETS) { if (t >= br.over) b = br; else break; }
+  let b = brackets[0];
+  for (const br of brackets) { if (t >= br.over) b = br; else break; }
   return round2(b.base + b.rate * (t - b.over));
-}
+};
+
+/** BIR withholding on a per-cutoff (semi-monthly) taxable amount. */
+export function withholdingTax(taxable) { return applyBrackets(taxable, TAX_BRACKETS); }
+/** BIR withholding on a whole-month taxable amount. */
+export function withholdingTaxMonthly(taxable) { return applyBrackets(taxable, TAX_BRACKETS_MONTHLY); }
 
 /**
  * Compute one cutoff's pay.
@@ -73,5 +87,34 @@ export function computeCutoff(cutoffGross, monthlyGross) {
     taxable,
     withholdingTax: tax,
     net,
+  };
+}
+
+const ZERO = { gross: 0, sss: 0, philhealth: 0, pagibig: 0, contributions: 0, taxable: 0, withholdingTax: 0, net: 0 };
+
+/**
+ * Compute pay for a chosen mode.
+ * @param {number} amount  the gross you entered (a cutoff or a month, per mode)
+ * @param {"split"|"cutoff"|"monthly"} mode
+ *   - split:   `amount` is monthly gross → one cutoff = half gross, half deductions
+ *   - cutoff:  `amount` is one cutoff's gross → whole gross, FULL deductions (semi-monthly tax)
+ *   - monthly: `amount` is monthly gross → whole month, full deductions, MONTHLY tax
+ */
+export function computeSalary(amount, mode = "split") {
+  const a = Number(amount) || 0;
+  if (a <= 0) return { ...ZERO };
+  if (mode === "split") return computeCutoff(a / 2, a);
+
+  const monthlyBasis = mode === "cutoff" ? a * 2 : a; // MSC/contribution caps use the monthly figure
+  const c = monthlyContributions(monthlyBasis);
+  const taxable = round2(a - c.total);
+  const tax = mode === "monthly" ? withholdingTaxMonthly(taxable) : withholdingTax(taxable);
+  return {
+    gross: a,
+    sss: c.sss, philhealth: c.philhealth, pagibig: c.pagibig,
+    contributions: c.total,
+    taxable,
+    withholdingTax: tax,
+    net: round2(a - c.total - tax),
   };
 }

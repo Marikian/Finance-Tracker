@@ -9,7 +9,7 @@
 //  • Preview: the same cache, persisted to localStorage.
 // ============================================================
 import { seed } from "./sampleData.js";
-import { computeCutoff } from "./salary.js";
+import { computeSalary } from "./salary.js";
 import { monthlyContributions } from "./salary.js";
 import { monthKey } from "./lib/format.js";
 import { USING_SUPABASE } from "./config.js";
@@ -229,7 +229,11 @@ export const pautangStatus = (p) => {
 export const savingsBalance = () =>
   db.savings.reduce((s, r) => s + (r.deposit || 0) - (r.withdrawal || 0), 0);
 
-export const salaryNet = (row) => computeCutoff(row.gross, row.monthly_gross);
+export const salaryNet = (row) => {
+  const mode = row.pay_mode || "split";
+  const amount = mode === "split" ? (row.monthly_gross || row.gross * 2) : row.gross;
+  return computeSalary(amount, mode);
+};
 // Total actually received: net take-home + optional (non-taxed) allowance & incentive.
 export const salaryReceived = (row) => salaryNet(row).net + (row.allowance || 0) + (row.incentive || 0);
 
