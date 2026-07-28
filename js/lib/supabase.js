@@ -9,7 +9,9 @@ export async function getClient() {
   if (_client) return _client;
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
   _client = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_PUBLISHABLE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    // implicit flow keeps the email-confirmation redirect simple for a static
+    // site: the session arrives in the URL hash and is picked up automatically.
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "implicit" },
   });
   return _client;
 }

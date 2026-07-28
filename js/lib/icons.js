@@ -21,6 +21,7 @@ const _icons = {
   trend: svg('<path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/>'),
   logout: svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'),
   download: svg('<path d="M12 3v12M8 11l4 4 4-4"/><path d="M5 21h14"/>'),
+  check: svg('<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.4 2.4 4.6-5"/>'),
 };
 
 // Never let a missing icon render the literal text "undefined".

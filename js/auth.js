@@ -22,7 +22,10 @@ export async function signUp({ name, email, password }) {
   requireName(name); requireEmail(email); requirePassword(password);
   if (USING_SUPABASE) {
     const sb = await getClient();
-    const { data, error } = await sb.auth.signUp({ email: normalize(email), password, options: { data: { name: name.trim() } } });
+    const { data, error } = await sb.auth.signUp({
+      email: normalize(email), password,
+      options: { data: { name: name.trim() }, emailRedirectTo: confirmRedirect() },
+    });
     if (error) throw new Error(friendly(error));
     if (!data.session) { const e = new Error("Account created — check your email to confirm, then sign in."); e.pending = true; throw e; }
     return toUser(data.user);
@@ -68,6 +71,9 @@ function friendly(error) {
 export function requireName(n) { if (!n || !n.trim()) throw new Error("What should we call you?"); }
 export function requireEmail(e) { if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((e || "").trim())) throw new Error("Enter a valid email address."); }
 export function requirePassword(p) { if (!p || p.length < 8) throw new Error("Use at least 8 characters for your password."); }
+
+// Where the confirmation email sends users back to (works locally and deployed).
+export const confirmRedirect = () => `${location.origin}${location.pathname}?confirmed=1`;
 
 const normalize = (e) => e.trim().toLowerCase();
 const nameFromEmail = (e) => (e.split("@")[0] || "").replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

@@ -168,13 +168,45 @@ function renderView() {
 }
 window.addEventListener("hashchange", routeFromHash);
 
+// ---------- Email-confirmation landing ----------
+let entered = false;
+async function enterApp(user) { if (entered) return; entered = true; await DB.sync(); await renderApp(user); }
+
+function cleanConfirmParam() {
+  try { const u = new URL(location.href); u.searchParams.delete("confirmed"); history.replaceState({}, "", u.pathname + u.hash); } catch { /* noop */ }
+}
+
+function renderConfirmed(user) {
+  app.innerHTML = "";
+  document.body.dataset.screen = "auth";
+  const first = (user?.name || "").split(" ")[0];
+  const card = el("div.login-card.rise", {}, [
+    brandMark(),
+    el("div.confirm-check", { html: icons.check }),
+    el("h1", { text: "Email confirmed" }),
+    el("p.lede", { text: user
+      ? `You're all set${first ? `, ${first}` : ""} — taking you to your dashboard…`
+      : "Your email is confirmed. Sign in to continue." }),
+    user
+      ? el("button.btn.btn-primary", { type: "button", style: { width: "100%" }, text: "Go to dashboard", onClick: () => enterApp(user) })
+      : el("button.btn.btn-primary", { type: "button", style: { width: "100%" }, text: "Sign in", onClick: () => renderAuth("signin") }),
+  ]);
+  app.append(el("div.login", {}, [card]));
+  if (user) setTimeout(() => enterApp(user), 2600);
+}
+
 // ---------- Start ----------
 (async function start() {
+  const justConfirmed = new URLSearchParams(location.search).has("confirmed");
   try {
     const user = await Auth.getUser();
+    if (justConfirmed) { cleanConfirmParam(); renderConfirmed(user); return; }
     if (user) { await DB.sync(); await renderApp(user); }
     else renderAuth("signin");
-  } catch { renderAuth("signin"); }
+  } catch {
+    if (justConfirmed) { cleanConfirmParam(); renderConfirmed(null); }
+    else renderAuth("signin");
+  }
 })();
 
 // Console helpers (preview mode only).

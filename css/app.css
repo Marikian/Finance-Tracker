@@ -162,6 +162,14 @@ button.cal-cell:hover { border-color: var(--accent); background: var(--accent-wa
 .login-card form { display: flex; flex-direction: column; gap: var(--space-4); }
 .login-note { font-size: var(--text-xs); color: var(--faint); text-align: center; margin-top: var(--space-5); line-height: var(--leading-snug); }
 
+/* Email-confirmed landing */
+.confirm-check { width: 60px; height: 60px; margin: var(--space-2) auto var(--space-4); display: grid; place-items: center;
+  border-radius: 50%; background: var(--positive-wash); color: var(--positive-ink); animation: pop var(--dur-3) var(--ease-out) both; }
+.confirm-check .ico { width: 32px; height: 32px; }
+.login-card h1 + .confirm-check { margin-top: 0; }
+@keyframes pop { 0% { transform: scale(0.7); opacity: 0; } 60% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .confirm-check { animation: none; } }
+
 /* Segmented auth toggle */
 .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 4px; margin-bottom: var(--space-5); }
 .auth-tab { min-height: 38px; border-radius: 7px; font-weight: 550; font-size: var(--text-base); color: var(--muted); transition: color var(--dur-1), background var(--dur-1), box-shadow var(--dur-1); }
