@@ -1,4 +1,4 @@
-import { el, toast, confirmDialog } from "../lib/ui.js";
+import { el, toast, confirmDialog, openForm } from "../lib/ui.js";
 import { icons } from "../lib/icons.js";
 import { money, fmtDateLong, todayISO } from "../lib/format.js";
 import * as DB from "../data.js";
@@ -8,7 +8,9 @@ import { pageHead, card, rowActions, emptyState, scrollTable } from "./shared.js
 export const meta = { id: "salary", label: "Salary", icon: icons.salary };
 
 export function render(root, ctx) {
-  root.append(pageHead("Salary", "Pick how you're paid — the calculator adjusts the gross and deductions to match."));
+  root.append(pageHead("Salary", "Pick how you're paid — the calculator adjusts the gross and deductions to match.", [
+    el("button.btn.btn-ghost", { type: "button", text: DB.profile().customDeductions ? "Deductions: fixed" : "My deductions", onClick: () => deductionsForm(ctx) }),
+  ]));
 
   const layout = el("div.salary-layout");
 
@@ -44,7 +46,8 @@ export function render(root, ctx) {
     const amount = parseFloat(grossInput.value) || 0;
     const allowance = parseFloat(allowanceInput.value) || 0;
     const incentive = parseFloat(incentiveInput.value) || 0;
-    const r = computeSalary(amount, modeSel.value);
+    const p = DB.profile();
+    const r = computeSalary(amount, modeSel.value, p.customDeductions ? p.deductions : null);
     paintBreakdown(breakdown, r, allowance, incentive);
     paintNet(netHero, r, allowance, incentive);
   };
@@ -104,6 +107,30 @@ export function render(root, ctx) {
   root.append(listCard);
 
   recalc();
+}
+
+function deductionsForm(ctx) {
+  const p = DB.profile();
+  openForm({
+    title: "My deductions",
+    submitLabel: "Save",
+    fields: [
+      { name: "mode", label: "How to deduct", type: "select", span: 2,
+        options: [
+          { value: "auto", label: "Auto-compute (2026 statutory)" },
+          { value: "fixed", label: "Use my fixed monthly amounts" },
+        ], value: p.customDeductions ? "fixed" : "auto",
+        hint: "Enter your MONTHLY totals — split-evenly mode halves them per cutoff." },
+      { name: "sss", label: "SSS (monthly)", type: "amount", value: p.deductions.sss || "" },
+      { name: "philhealth", label: "PhilHealth (monthly)", type: "amount", value: p.deductions.philhealth || "" },
+      { name: "pagibig", label: "Pag-IBIG (monthly)", type: "amount", value: p.deductions.pagibig || "" },
+    ],
+    onSubmit: async (v) => {
+      await DB.setDeductions({ custom: v.mode === "fixed", sss: parseFloat(v.sss) || 0, philhealth: parseFloat(v.philhealth) || 0, pagibig: parseFloat(v.pagibig) || 0 });
+      toast("Deductions saved");
+      ctx.rerender();
+    },
+  });
 }
 
 function salaryRow(row, ctx) {

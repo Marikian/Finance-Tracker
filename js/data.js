@@ -36,7 +36,7 @@ function coerceNumbers(table, row) {
 
 function emptyDb() {
   return {
-    profile: { name: "", email: "", savingsGoal: 0 },
+    profile: { name: "", email: "", savingsGoal: 0, customDeductions: false, deductions: { sss: 0, philhealth: 0, pagibig: 0 } },
     salary: [], expenses: [], loans: [], loan_payments: [], pautang: [], savings: [], habits: [],
   };
 }
@@ -64,7 +64,11 @@ export async function sync() {
   TABLES.forEach((t, i) => { next[t] = (results[i].data || []).map((row) => coerceNumbers(t, row)); });
 
   const { data: prof } = await sb.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
-  next.profile = { name: prof?.name || user.user_metadata?.name || "", email: user.email || "", savingsGoal: Number(prof?.savings_goal) || 0 };
+  next.profile = {
+    name: prof?.name || user.user_metadata?.name || "", email: user.email || "", savingsGoal: Number(prof?.savings_goal) || 0,
+    customDeductions: !!prof?.custom_deductions,
+    deductions: { sss: Number(prof?.ded_sss) || 0, philhealth: Number(prof?.ded_philhealth) || 0, pagibig: Number(prof?.ded_pagibig) || 0 },
+  };
   db = next;
 }
 
@@ -86,6 +90,20 @@ export async function setSavingsGoal(v) {
     const sb = await getClient();
     const { data: { user } } = await sb.auth.getUser();
     if (user) await sb.from("profiles").upsert({ user_id: user.id, savings_goal: db.profile.savingsGoal }, { onConflict: "user_id" });
+  } else commit();
+}
+/** Save the user's fixed monthly deductions (and whether to use them). */
+export async function setDeductions({ custom, sss, philhealth, pagibig }) {
+  db.profile.customDeductions = !!custom;
+  db.profile.deductions = { sss: Number(sss) || 0, philhealth: Number(philhealth) || 0, pagibig: Number(pagibig) || 0 };
+  if (USING_SUPABASE) {
+    const sb = await getClient();
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) await sb.from("profiles").upsert({
+      user_id: user.id,
+      custom_deductions: db.profile.customDeductions,
+      ded_sss: db.profile.deductions.sss, ded_philhealth: db.profile.deductions.philhealth, ded_pagibig: db.profile.deductions.pagibig,
+    }, { onConflict: "user_id" });
   } else commit();
 }
 
@@ -232,7 +250,8 @@ export const savingsBalance = () =>
 export const salaryNet = (row) => {
   const mode = row.pay_mode || "split";
   const amount = mode === "split" ? (row.monthly_gross || row.gross * 2) : row.gross;
-  return computeSalary(amount, mode);
+  const override = db.profile.customDeductions ? db.profile.deductions : null;
+  return computeSalary(amount, mode, override);
 };
 // Total actually received: net take-home + optional (non-taxed) allowance & incentive.
 export const salaryReceived = (row) => salaryNet(row).net + (row.allowance || 0) + (row.incentive || 0);

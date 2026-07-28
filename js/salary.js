@@ -100,21 +100,24 @@ const ZERO = { gross: 0, sss: 0, philhealth: 0, pagibig: 0, contributions: 0, ta
  *   - cutoff:  `amount` is one cutoff's gross → whole gross, FULL deductions (semi-monthly tax)
  *   - monthly: `amount` is monthly gross → whole month, full deductions, MONTHLY tax
  */
-export function computeSalary(amount, mode = "split") {
+export function computeSalary(amount, mode = "split", override = null) {
   const a = Number(amount) || 0;
   if (a <= 0) return { ...ZERO };
-  if (mode === "split") return computeCutoff(a / 2, a);
 
-  const monthlyBasis = mode === "cutoff" ? a * 2 : a; // MSC/contribution caps use the monthly figure
-  const c = monthlyContributions(monthlyBasis);
-  const taxable = round2(a - c.total);
+  const monthly = mode === "cutoff" ? a * 2 : a; // monthly figure for MSC/caps
+  const half = mode === "split";                  // split → per-cutoff (halved)
+  // Monthly contributions: the user's fixed amounts if given, else statutory.
+  const mc = override
+    ? { sss: Number(override.sss) || 0, philhealth: Number(override.philhealth) || 0, pagibig: Number(override.pagibig) || 0 }
+    : monthlyContributions(monthly);
+  const div = half ? 2 : 1;
+  const sss = round2(mc.sss / div);
+  const philhealth = round2(mc.philhealth / div);
+  const pagibig = round2(mc.pagibig / div);
+  const contributions = round2(sss + philhealth + pagibig);
+
+  const gross = half ? round2(a / 2) : a;
+  const taxable = round2(gross - contributions);
   const tax = mode === "monthly" ? withholdingTaxMonthly(taxable) : withholdingTax(taxable);
-  return {
-    gross: a,
-    sss: c.sss, philhealth: c.philhealth, pagibig: c.pagibig,
-    contributions: c.total,
-    taxable,
-    withholdingTax: tax,
-    net: round2(a - c.total - tax),
-  };
+  return { gross, sss, philhealth, pagibig, contributions, taxable, withholdingTax: tax, net: round2(gross - contributions - tax) };
 }
