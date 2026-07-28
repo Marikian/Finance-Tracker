@@ -142,8 +142,8 @@ function deductionsForm(ctx) {
   const sync = () => {
     tabAuto.classList.toggle("active", mode === "auto");
     tabFixed.classList.toggle("active", mode === "fixed");
-    autoNote.hidden = mode !== "auto";
-    fixedFields.hidden = mode !== "fixed";
+    autoNote.style.display = mode === "auto" ? "" : "none";
+    fixedFields.style.display = mode === "fixed" ? "grid" : "none";
   };
   tabAuto.addEventListener("click", () => { mode = "auto"; sync(); });
   tabFixed.addEventListener("click", () => { mode = "fixed"; sync(); });
