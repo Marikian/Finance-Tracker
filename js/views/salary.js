@@ -1,4 +1,4 @@
-import { el, toast, confirmDialog, openForm } from "../lib/ui.js";
+import { el, toast, confirmDialog } from "../lib/ui.js";
 import { icons } from "../lib/icons.js";
 import { money, fmtDateLong, todayISO } from "../lib/format.js";
 import * as DB from "../data.js";
@@ -54,7 +54,7 @@ export function render(root, ctx) {
 
   // Deductions control, right under the gross input.
   const dedRow = el("div", { style: { gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)" } }, [
-    el("span.hint", { text: DB.profile().customDeductions ? "Deductions: my fixed amounts" : "Deductions: auto (2026)" }),
+    el("span.hint", { text: DB.profile().customDeductions ? "Deduction: Fixed amount" : "Deduction: Auto" }),
     el("button.btn.btn-quiet.btn-sm", { type: "button", html: `${icons.edit}<span>Edit</span>`, onClick: () => deductionsForm(ctx) }),
   ]);
 
@@ -114,26 +114,50 @@ export function render(root, ctx) {
 
 function deductionsForm(ctx) {
   const p = DB.profile();
-  openForm({
-    title: "My deductions",
-    submitLabel: "Save",
-    fields: [
-      { name: "mode", label: "Deductions", type: "select", span: 2,
-        options: [
-          { value: "auto", label: "Auto · 2026" },
-          { value: "fixed", label: "Fixed amounts" },
-        ], value: p.customDeductions ? "fixed" : "auto",
-        hint: "Monthly totals · split mode halves them" },
-      { name: "sss", label: "SSS", type: "amount", value: p.deductions.sss || "" },
-      { name: "philhealth", label: "PhilHealth", type: "amount", value: p.deductions.philhealth || "" },
-      { name: "pagibig", label: "Pag-IBIG", type: "amount", value: p.deductions.pagibig || "" },
-    ],
-    onSubmit: async (v) => {
-      await DB.setDeductions({ custom: v.mode === "fixed", sss: parseFloat(v.sss) || 0, philhealth: parseFloat(v.philhealth) || 0, pagibig: parseFloat(v.pagibig) || 0 });
-      toast("Deductions saved");
-      ctx.rerender();
-    },
-  });
+  let mode = p.customDeductions ? "fixed" : "auto";
+
+  const amt = (v) => el("input.input.num", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "0.00", value: v || "" });
+  const sssIn = amt(p.deductions.sss), phIn = amt(p.deductions.philhealth), pagIn = amt(p.deductions.pagibig);
+
+  const fixedFields = el("div", { style: { display: "grid", gap: "var(--space-4)", marginTop: "var(--space-4)" } }, [
+    field("SSS", wrapAmount(sssIn)),
+    field("PhilHealth", wrapAmount(phIn)),
+    field("Pag-IBIG", wrapAmount(pagIn)),
+    el("span.hint", { text: "Monthly totals · split mode halves them per cutoff" }),
+  ]);
+
+  const tabAuto = el("button.auth-tab", { type: "button", text: "Auto" });
+  const tabFixed = el("button.auth-tab", { type: "button", text: "Fixed amount" });
+  const sync = () => {
+    tabAuto.classList.toggle("active", mode === "auto");
+    tabFixed.classList.toggle("active", mode === "fixed");
+    fixedFields.hidden = mode !== "fixed";
+  };
+  tabAuto.addEventListener("click", () => { mode = "auto"; sync(); });
+  tabFixed.addEventListener("click", () => { mode = "fixed"; sync(); });
+
+  const dlg = el("dialog.modal", { "aria-label": "Deductions" });
+  dlg.append(
+    el("div.modal-head", {}, [
+      el("h3", { text: "Deduction" }),
+      el("button.btn-icon.btn-quiet", { type: "button", "aria-label": "Close", html: icons.close, onClick: () => dlg.close() }),
+    ]),
+    el("div.modal-body", { style: { paddingBottom: "var(--space-4)" } }, [
+      el("div.auth-tabs", { role: "tablist", style: { marginBottom: "0" } }, [tabAuto, tabFixed]),
+      fixedFields,
+    ]),
+    el("div.modal-foot", {}, [
+      el("button.btn.btn-ghost", { type: "button", text: "Cancel", onClick: () => dlg.close() }),
+      el("button.btn.btn-primary", { type: "button", text: "Save", onClick: async () => {
+        await DB.setDeductions({ custom: mode === "fixed", sss: parseFloat(sssIn.value) || 0, philhealth: parseFloat(phIn.value) || 0, pagibig: parseFloat(pagIn.value) || 0 });
+        dlg.close(); toast("Deductions saved"); ctx.rerender();
+      } }),
+    ]),
+  );
+  document.body.append(dlg);
+  dlg.addEventListener("close", () => dlg.remove());
+  dlg.showModal();
+  sync();
 }
 
 function salaryRow(row, ctx) {
