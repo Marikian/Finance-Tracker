@@ -8,13 +8,12 @@ import { pageHead, card, rowActions, emptyState, scrollTable } from "./shared.js
 export const meta = { id: "salary", label: "Salary", icon: icons.salary };
 
 export function render(root, ctx) {
-  root.append(pageHead("Salary", "Enter a cutoff's gross — the app computes your take-home."));
+  root.append(pageHead("Salary", "Enter your monthly gross — it's split per cutoff (15th & 30th) with half the deductions."));
 
   const layout = el("div.salary-layout");
 
   // --- Live calculator ---
-  const grossInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "22,500.00" });
-  const monthlyInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "auto (cutoff × 2)" });
+  const monthlyInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "45,000.00" });
   const allowanceInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "0.00" });
   const incentiveInput = el("input.input", { type: "number", step: "0.01", min: "0", inputmode: "decimal", placeholder: "0.00" });
   const periodSel = el("select.select", {}, [
@@ -26,22 +25,21 @@ export function render(root, ctx) {
   const breakdown = el("div.breakdown");
   const netHero = el("div.net-hero");
 
+  // Input is the FULL monthly gross; a cutoff (15th/30th) is half of everything.
   const recalc = () => {
-    const gross = parseFloat(grossInput.value) || 0;
     const monthly = parseFloat(monthlyInput.value) || 0;
     const allowance = parseFloat(allowanceInput.value) || 0;
     const incentive = parseFloat(incentiveInput.value) || 0;
-    const r = computeCutoff(gross, monthly || undefined);
+    const r = computeCutoff(monthly / 2, monthly);
     paintBreakdown(breakdown, r, allowance, incentive);
     paintNet(netHero, r, allowance, incentive);
   };
-  [grossInput, monthlyInput, allowanceInput, incentiveInput].forEach((i) => i.addEventListener("input", recalc));
+  [monthlyInput, allowanceInput, incentiveInput].forEach((i) => i.addEventListener("input", recalc));
 
   const calcCard = card("Calculate a cutoff", [
     el("div.calc-grid", {}, [
-      field("Cutoff gross", wrapAmount(grossInput), "What you're paid this cutoff"),
-      field("Monthly gross", wrapAmount(monthlyInput), "Optional — drives SSS/PhilHealth/Pag-IBIG"),
-      field("Allowance", wrapAmount(allowanceInput), "Optional — added, not taxed"),
+      field("Monthly gross", wrapAmount(monthlyInput), "Full month — split across the 15th & 30th"),
+      field("Allowance", wrapAmount(allowanceInput), "Optional — this cutoff, not taxed"),
       field("Incentive", wrapAmount(incentiveInput), "Optional — bonus / performance"),
       field("Period", periodSel),
       field("Pay date", dateInput),
@@ -51,13 +49,13 @@ export function render(root, ctx) {
       el("button.btn.btn-primary", {
         type: "button", html: `${icons.plus}<span>Save this cutoff</span>`,
         onClick: async () => {
-          const gross = parseFloat(grossInput.value) || 0;
-          if (gross <= 0) return toast("Enter a gross amount first", "err");
+          const monthly = parseFloat(monthlyInput.value) || 0;
+          if (monthly <= 0) return toast("Enter your monthly gross first", "err");
           await DB.Salary.add({
             pay_date: dateInput.value || todayISO(),
             period: periodSel.value,
-            gross,
-            monthly_gross: parseFloat(monthlyInput.value) || gross * 2,
+            gross: monthly / 2,
+            monthly_gross: monthly,
             allowance: parseFloat(allowanceInput.value) || 0,
             incentive: parseFloat(incentiveInput.value) || 0,
           });

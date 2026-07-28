@@ -183,6 +183,37 @@ export function loadSample() {
 }
 export const hasData = () => TABLES.some((k) => k !== "loan_payments" && k !== "habits" ? db[k].length > 0 : false);
 
+// Suggest habits from recurring spending patterns (frequent merchants /
+// categories) that aren't already tracked. Empty when there's no clear pattern.
+const CATEGORY_HABIT = {
+  Dining: "Eat at home",
+  Transport: "Commute without ride-hailing",
+  Shopping: "No impulse buys",
+  Subscriptions: "Review subscriptions",
+  Others: "Cut back on extras",
+};
+export function suggestedHabits() {
+  const existing = new Set(db.habits.map((h) => h.name.trim().toLowerCase()));
+  const byMerchant = {}, byCategory = {};
+  for (const e of db.expenses) {
+    const m = (e.merchant || "").trim();
+    if (m && m !== "—") byMerchant[m] = (byMerchant[m] || 0) + 1;
+    if (e.category) byCategory[e.category] = (byCategory[e.category] || 0) + 1;
+  }
+  const out = [];
+  const push = (name, reason) => {
+    const key = name.trim().toLowerCase();
+    if (!existing.has(key) && !out.some((s) => s.name.toLowerCase() === key)) out.push({ name, reason });
+  };
+  // Repeated merchant (≥3 visits) → a "skip" habit.
+  Object.entries(byMerchant).filter(([, c]) => c >= 3).sort((a, b) => b[1] - a[1])
+    .forEach(([m, c]) => push(`Skip ${m}`, `${c} purchases at ${m}`));
+  // Frequent category (≥4 expenses) → a mapped positive habit.
+  Object.entries(byCategory).filter(([, c]) => c >= 4).sort((a, b) => b[1] - a[1])
+    .forEach(([cat, c]) => { if (CATEGORY_HABIT[cat]) push(CATEGORY_HABIT[cat], `${c} ${cat.toLowerCase()} expenses`); });
+  return out.slice(0, 3);
+}
+
 // ---------- derived selectors (pure, read the cache) ----------
 export const loanBalance = (loan) =>
   Math.max(0, loan.original_amount - LoanPayments.forLoan(loan.id).reduce((s, p) => s + p.amount, 0));

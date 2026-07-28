@@ -59,6 +59,22 @@ export function render(root, ctx) {
 
   root.append(card("Habit tracker", habitBody,
     el("button.btn.btn-ghost.btn-sm", { type: "button", html: `${icons.plus}<span>Add habit</span>`, onClick: () => addHabit(ctx) })));
+
+  // --- Suggested habits, from spending patterns ---
+  const suggestions = DB.suggestedHabits();
+  if (suggestions.length) {
+    root.append(card("Suggested from your spending",
+      el("div.rows", {}, suggestions.map((s) => suggestionRow(s, ctx))),
+      el("span.chip", { html: `${icons.spark}<span>auto</span>` })));
+  }
+}
+
+function suggestionRow(s, ctx) {
+  return el("div.list-row", {}, [
+    el("div", {}, [el("div.lead", { text: s.name }), el("div.sub", { text: s.reason })]),
+    el("button.btn.btn-ghost.btn-sm", { type: "button", style: { justifySelf: "end" }, html: `${icons.plus}<span>Track</span>`,
+      onClick: async () => { await DB.Habits.add(s.name); toast(`Tracking "${s.name}"`); ctx.rerender(); } }),
+  ]);
 }
 
 function habitRow(h, daysInMonth, ctx) {
