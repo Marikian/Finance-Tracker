@@ -104,21 +104,22 @@ export function computeSalary(amount, mode = "split", override = null) {
   const a = Number(amount) || 0;
   if (a <= 0) return { ...ZERO };
 
-  const monthly = mode === "cutoff" ? a * 2 : a; // monthly figure for MSC/caps
-  const half = mode === "split";                  // split → per-cutoff (halved)
-  // Auto = statutory monthly contributions, halved per cutoff in split mode.
-  // Fixed = the user's EXACT per-pay amounts, used as typed (never halved).
+  // The entered amount IS the gross for this entry (never halved). The pay
+  // period is a status: "split" = one semi-monthly cutoff, "monthly" = a month.
+  const split = mode === "split";
+  const monthlyBasis = split ? a * 2 : a; // split: this cutoff implies a ×2 month (for MSC/caps)
+  // Auto = statutory (halved per cutoff in split). Fixed = exact amounts, as typed.
   const mc = override
     ? { sss: Number(override.sss) || 0, philhealth: Number(override.philhealth) || 0, pagibig: Number(override.pagibig) || 0 }
-    : monthlyContributions(monthly);
-  const div = override ? 1 : (half ? 2 : 1);
+    : monthlyContributions(monthlyBasis);
+  const div = override ? 1 : (split ? 2 : 1);
   const sss = round2(mc.sss / div);
   const philhealth = round2(mc.philhealth / div);
   const pagibig = round2(mc.pagibig / div);
   const contributions = round2(sss + philhealth + pagibig);
 
-  const gross = half ? round2(a / 2) : a;
+  const gross = a;
   const taxable = round2(gross - contributions);
-  const tax = mode === "monthly" ? withholdingTaxMonthly(taxable) : withholdingTax(taxable);
+  const tax = split ? withholdingTax(taxable) : withholdingTaxMonthly(taxable);
   return { gross, sss, philhealth, pagibig, contributions, taxable, withholdingTax: tax, net: round2(gross - contributions - tax) };
 }

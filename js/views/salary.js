@@ -33,8 +33,8 @@ export function render(root, ctx) {
   const grossHint = el("span.hint", {});
   const syncLabel = () => {
     const m = modeSel.value;
-    grossLabel.textContent = "Monthly gross";
-    grossHint.textContent = m === "monthly" ? "Whole month" : "Split · half each cutoff";
+    grossLabel.textContent = "Gross";
+    grossHint.textContent = m === "monthly" ? "Total this month" : "Total this cutoff";
     periodSel.parentElement && (periodSel.parentElement.style.display = m === "monthly" ? "none" : "");
   };
 
@@ -79,8 +79,8 @@ export function render(root, ctx) {
           await DB.Salary.add({
             pay_date: dateInput.value || todayISO(),
             period: mode === "monthly" ? "Whole month" : periodSel.value,
-            gross: mode === "split" ? amount / 2 : amount,
-            monthly_gross: amount,
+            gross: amount,
+            monthly_gross: mode === "split" ? amount * 2 : amount,
             pay_mode: mode,
             allowance: parseFloat(allowanceInput.value) || 0,
             incentive: parseFloat(incentiveInput.value) || 0,

@@ -249,9 +249,8 @@ export const savingsBalance = () =>
 
 export const salaryNet = (row) => {
   const mode = row.pay_mode || "split";
-  const amount = mode === "split" ? (row.monthly_gross || row.gross * 2) : row.gross;
   const override = db.profile.customDeductions ? db.profile.deductions : null;
-  return computeSalary(amount, mode, override);
+  return computeSalary(row.gross, mode, override);
 };
 // Total actually received: net take-home + optional (non-taxed) allowance & incentive.
 export const salaryReceived = (row) => salaryNet(row).net + (row.allowance || 0) + (row.incentive || 0);
