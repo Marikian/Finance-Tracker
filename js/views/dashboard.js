@@ -26,7 +26,7 @@ export function render(root, ctx) {
     kpi("Net income", s.netIncome, money, `${s.salaryRows.length} cutoff${s.salaryRows.length === 1 ? "" : "s"} recorded`, { feature: true, go: "salary" }),
     kpi("Expenses", s.expenseTotal, money, `${s.monthExpenses.length} transactions`, { go: "expenses" }),
     kpi("Saved", s.savedThisMonth, money, s.savedThisMonth >= 0 ? "added this month" : "net withdrawal", { go: "savings" }),
-    kpi("Left over", s.leftOver, money, s.leftOver >= 0 ? "income minus spend" : "spent beyond salary so far", { negative: s.leftOver < 0, go: "expenses" }),
+    kpi("Left over", s.leftOver, money, s.leftOver >= 0 ? "after spend & savings" : "over budget", { negative: s.leftOver < 0, go: "expenses" }),
     kpi("Savings rate", s.savingsRate, pct, "of net income kept", { go: "savings" }),
   );
   bindKpiNav(kpis, ctx);
@@ -113,17 +113,20 @@ function renderWelcome(root, ctx) {
 }
 
 function insight(s) {
+  const afterSpend = s.netIncome - s.expenseTotal; // before savings
   let text;
   if (s.netIncome <= 0) {
     text = "No salary recorded for this month yet — add a cutoff to see your full picture.";
+  } else if (afterSpend < 0) {
+    text = `Heads up — expenses are ${money0(-afterSpend)} over your income this month.`;
   } else if (s.leftOver < 0) {
-    text = `Heads up — you've spent ${money0(-s.leftOver)} more than the salary recorded so far this month.`;
+    text = `You set aside more than what was free — ${money0(-s.leftOver)} of savings came from your buffer.`;
   } else if (s.savingsRate >= 20) {
-    text = `Strong month — you kept ${pct(s.savingsRate)} of your net income.`;
+    text = `Strong month — you saved ${pct(s.savingsRate)} of your net income, ${money0(s.leftOver)} still free.`;
   } else {
     const topCat = Object.entries(s.byCategory).sort((a, b) => b[1] - a[1])[0];
     text = topCat
-      ? `Biggest category was ${topCat[0]} at ${money0(topCat[1])}. You kept ${pct(s.savingsRate)} of net.`
+      ? `Biggest category was ${topCat[0]} at ${money0(topCat[1])}. ${money0(s.leftOver)} left over.`
       : `You have ${money0(s.leftOver)} left over so far this month.`;
   }
   const node = el("div.insight", {}, [el("span.glyph", { html: icons.spark }), el("p", { html: text.replace(/(₱[\d,]+)/g, "<b>$1</b>") })]);

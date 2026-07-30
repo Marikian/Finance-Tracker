@@ -269,7 +269,8 @@ export function monthlySummary(mKey) {
   const byMerchant = {};
   for (const e of monthExpenses) byMerchant[e.merchant || "—"] = (byMerchant[e.merchant || "—"] || 0) + e.amount;
   const savedThisMonth = db.savings.filter((r) => inMonth(r.date)).reduce((s, r) => s + (r.deposit || 0) - (r.withdrawal || 0), 0);
-  const leftOver = netIncome - expenseTotal;
+  // What's actually free: income minus what you spent AND what you set aside.
+  const leftOver = netIncome - expenseTotal - savedThisMonth;
   const savingsRate = netIncome > 0 ? (savedThisMonth / netIncome) * 100 : 0;
   return { mKey, salaryRows, monthExpenses, netIncome, grossIncome, allowanceTotal, incentiveTotal, expenseTotal, byCategory, byMerchant, savedThisMonth, leftOver, savingsRate };
 }
