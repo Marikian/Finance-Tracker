@@ -20,13 +20,6 @@ export function render(root, ctx) {
   const exportBtn = el("button.btn.btn-ghost", { type: "button", title: "Export to a spreadsheet", html: `${icons.download}<span>Export</span>`, onClick: openExportMenu });
   root.append(pageHead("Dashboard", `Your money in ${fmtMonth(m + "-01")}`, [monthNav(ctx), exportBtn]));
 
-  // Accumulated net income to date (running total of take-home).
-  if (s.accumulatedNet > 0) {
-    root.append(el("div.carryover", {}, [
-      el("span.chip.solid-pos", { html: `<span class="dot"></span>Accumulated net income ${money(s.accumulatedNet)}` }),
-      el("span.faint", { style: { fontSize: "var(--text-sm)" }, text: `total take-home to date` }),
-    ]));
-  }
 
   // --- KPI row (each tile jumps to its detail view) ---
   const kpis = el("div.kpi-grid");

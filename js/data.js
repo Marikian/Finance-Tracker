@@ -273,11 +273,7 @@ export function monthlySummary(mKey) {
   const leftOver = netIncome - expenseTotal - savedThisMonth;
   const savingsRate = netIncome > 0 ? (savedThisMonth / netIncome) * 100 : 0;
 
-  // Accumulated net income: total take-home earned up to and including this month.
-  const upTo = (d) => monthKey(d) <= mKey;
-  const accumulatedNet = db.salary.filter((s) => upTo(s.pay_date)).reduce((a, r) => a + salaryReceived(r), 0);
-
-  return { mKey, salaryRows, monthExpenses, netIncome, grossIncome, allowanceTotal, incentiveTotal, expenseTotal, byCategory, byMerchant, savedThisMonth, leftOver, savingsRate, accumulatedNet };
+  return { mKey, salaryRows, monthExpenses, netIncome, grossIncome, allowanceTotal, incentiveTotal, expenseTotal, byCategory, byMerchant, savedThisMonth, leftOver, savingsRate };
 }
 
 export function monthsWithData() {
