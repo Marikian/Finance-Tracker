@@ -198,6 +198,9 @@ button.cal-cell:hover { border-color: var(--accent); background: var(--accent-wa
   .stagger > *:nth-child(9){animation-delay:.26s} .stagger > *:nth-child(n+10){animation-delay:.29s}
 }
 
+/* Carry-over pill */
+.carryover { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: calc(-1 * var(--space-3)) 0 var(--space-5); }
+
 /* Export chooser */
 .export-choices { display: flex; flex-direction: column; gap: var(--space-3); }
 .export-choice { display: flex; gap: var(--space-3); align-items: flex-start; text-align: left; width: 100%;

@@ -272,7 +272,16 @@ export function monthlySummary(mKey) {
   // What's actually free: income minus what you spent AND what you set aside.
   const leftOver = netIncome - expenseTotal - savedThisMonth;
   const savingsRate = netIncome > 0 ? (savedThisMonth / netIncome) * 100 : 0;
-  return { mKey, salaryRows, monthExpenses, netIncome, grossIncome, allowanceTotal, incentiveTotal, expenseTotal, byCategory, byMerchant, savedThisMonth, leftOver, savingsRate };
+
+  // Carry-over: every prior month's free cash follows forward into this month.
+  const prior = (d) => monthKey(d) < mKey;
+  const priorNet = db.salary.filter((s) => prior(s.pay_date)).reduce((a, r) => a + salaryReceived(r), 0);
+  const priorExp = db.expenses.filter((e) => prior(e.date)).reduce((a, e) => a + e.amount, 0);
+  const priorSaved = db.savings.filter((r) => prior(r.date)).reduce((a, r) => a + (r.deposit || 0) - (r.withdrawal || 0), 0);
+  const carriedOver = priorNet - priorExp - priorSaved;
+  const available = carriedOver + leftOver; // running free balance you carry to next month
+
+  return { mKey, salaryRows, monthExpenses, netIncome, grossIncome, allowanceTotal, incentiveTotal, expenseTotal, byCategory, byMerchant, savedThisMonth, leftOver, savingsRate, carriedOver, available };
 }
 
 export function monthsWithData() {
