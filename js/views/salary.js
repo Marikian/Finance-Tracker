@@ -1,6 +1,6 @@
 import { el, toast, confirmDialog } from "../lib/ui.js";
 import { icons } from "../lib/icons.js";
-import { money, fmtDateLong, fmtMonth, todayISO } from "../lib/format.js";
+import { money, fmtDateLong, todayISO } from "../lib/format.js";
 import * as DB from "../data.js";
 import { computeSalary } from "../salary.js";
 import { pageHead, card, rowActions, emptyState, scrollTable } from "./shared.js";
@@ -9,13 +9,6 @@ export const meta = { id: "salary", label: "Salary", icon: icons.salary };
 
 export function render(root, ctx) {
   root.append(pageHead("Salary", "Your take-home, per cutoff or per month."));
-
-  const mKey = ctx.state.month;
-  root.append(el("div.tile", { style: { marginBottom: "var(--space-5)" } }, [
-    el("div.t-label", { text: "Total earned" }),
-    el("div.t-value.fig", { style: { fontSize: "var(--text-2xl)" }, text: money(DB.accumulatedIncome(mKey)) }),
-    el("div.k-meta.faint", { text: `net take-home through ${fmtMonth(mKey + "-01")}` }),
-  ]));
 
   const layout = el("div.salary-layout");
 

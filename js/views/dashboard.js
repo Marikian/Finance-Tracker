@@ -10,6 +10,9 @@ import { pageHead, monthNav, card } from "./shared.js";
 
 export const meta = { id: "dashboard", label: "Dashboard", icon: icons.dashboard };
 
+// Persisted (per session) month range for the Total income tile.
+let incomeRange = null;
+
 export function render(root, ctx) {
   // First run — no data yet. Welcome instead of empty zeros.
   if (!DB.hasData()) return renderWelcome(root, ctx);
@@ -21,14 +24,20 @@ export function render(root, ctx) {
   root.append(pageHead("Dashboard", `Your money in ${fmtMonth(m + "-01")}`, [monthNav(ctx), exportBtn]));
 
 
-  // --- KPI row (each tile jumps to its detail view) ---
+  // Total income — accumulated take-home over a chosen month range (via popup).
+  const bounds = DB.incomeMonthBounds();
+  if (!incomeRange) incomeRange = { from: bounds.first || m, to: bounds.last || m };
+  const totalIncome = DB.accumulatedIncome(incomeRange.from, incomeRange.to);
+  const rangeMeta = `${fmtMonth(incomeRange.from + "-01")} – ${fmtMonth(incomeRange.to + "-01")}`;
+
+  // --- KPI row ---
   const kpis = el("div.kpi-grid");
   kpis.append(
     kpi("Net income", s.netIncome, money, `${s.salaryRows.length} cutoff${s.salaryRows.length === 1 ? "" : "s"} recorded`, { feature: true, go: "salary" }),
-    kpi("Total income", DB.accumulatedIncome(m), money, `earned through ${fmtMonth(m + "-01")}`, { go: "salary" }),
+    kpi("Total income", totalIncome, money, rangeMeta, { onClick: () => incomeRangeDialog(ctx) }),
     kpi("Expenses", s.expenseTotal, money, `${s.monthExpenses.length} transactions`, { go: "expenses" }),
-    kpi("Saved", s.savedThisMonth, money, s.savedThisMonth >= 0 ? "added this month" : "net withdrawal", { go: "savings" }),
     kpi("Left over", s.leftOver, money, s.leftOver >= 0 ? "after spend & savings" : "over budget", { negative: s.leftOver < 0, go: "expenses" }),
+    kpi("Saved", s.savedThisMonth, money, s.savedThisMonth >= 0 ? "added this month" : "net withdrawal", { go: "savings" }),
     kpi("Savings rate", s.savingsRate, pct, "of net income kept", { go: "savings" }),
   );
   bindKpiNav(kpis, ctx);
@@ -79,14 +88,60 @@ export function render(root, ctx) {
   root.append(grid);
 }
 
-function kpi(label, value, format, meta, { feature = false, negative = false, go = null } = {}) {
+function kpi(label, value, format, meta, { feature = false, negative = false, go = null, onClick = null } = {}) {
   const valNode = el(`div.k-value.fig${negative && !feature ? ".neg" : ""}`, { text: format(value) });
   valNode.dataset.countTo = value; valNode._fmt = format;
-  return el(`div.kpi${feature ? ".feature" : ""}${go ? ".clickable" : ""}`, go ? { role: "link", tabindex: "0", dataset: { go }, "aria-label": `${label}: ${format(value)}. View ${go}.` } : {}, [
+  const clickable = go || onClick;
+  const node = el(`div.kpi${feature ? ".feature" : ""}${clickable ? ".clickable" : ""}`, clickable ? { role: go ? "link" : "button", tabindex: "0", "aria-label": `${label}: ${format(value)}` } : {}, [
     el("div.k-label", { text: label }),
     valNode,
     el("div.k-meta", { text: meta }),
   ]);
+  if (go) node.dataset.go = go;
+  if (onClick) {
+    node.addEventListener("click", onClick);
+    node.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } });
+  }
+  return node;
+}
+
+// Popup: pick the from/to month range for the Total income tile.
+function incomeRangeDialog(ctx) {
+  const bounds = DB.incomeMonthBounds();
+  const fromIn = el("input.input", { type: "month", value: incomeRange.from, min: bounds.first || undefined, max: bounds.last || undefined });
+  const toIn = el("input.input", { type: "month", value: incomeRange.to, min: bounds.first || undefined, max: bounds.last || undefined });
+  const totalEl = el("div.fig", { style: { fontSize: "var(--text-2xl)" } });
+
+  const norm = () => { let f = fromIn.value || bounds.first, t = toIn.value || bounds.last; if (f && t && f > t) [f, t] = [t, f]; return { from: f, to: t }; };
+  const recompute = () => { const { from, to } = norm(); totalEl.textContent = money(DB.accumulatedIncome(from, to)); };
+  fromIn.addEventListener("change", recompute);
+  toIn.addEventListener("change", recompute);
+
+  const dlg = el("dialog.modal", { "aria-label": "Total income range" });
+  dlg.append(
+    el("div.modal-head", {}, [
+      el("h3", { text: "Total income" }),
+      el("button.btn-icon.btn-quiet", { type: "button", "aria-label": "Close", html: icons.close, onClick: () => dlg.close() }),
+    ]),
+    el("div.modal-body", { style: { paddingBottom: "var(--space-4)" } }, [
+      el("div.form-grid", {}, [
+        el("div.field", {}, [el("label", { text: "From" }), fromIn]),
+        el("div.field", {}, [el("label", { text: "To" }), toIn]),
+      ]),
+      el("div", { style: { marginTop: "var(--space-4)" } }, [
+        el("div.t-label", { text: "Total earned in range" }),
+        totalEl,
+      ]),
+    ]),
+    el("div.modal-foot", {}, [
+      el("button.btn.btn-ghost", { type: "button", text: "Cancel", onClick: () => dlg.close() }),
+      el("button.btn.btn-primary", { type: "button", text: "Apply", onClick: () => { incomeRange = norm(); dlg.close(); ctx.rerender(); } }),
+    ]),
+  );
+  document.body.append(dlg);
+  dlg.addEventListener("close", () => dlg.remove());
+  dlg.showModal();
+  recompute();
 }
 
 // Wire clickable KPIs to navigation (click + Enter/Space).

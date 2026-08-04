@@ -255,9 +255,17 @@ export const salaryNet = (row) => {
 // Total actually received: net take-home + optional (non-taxed) allowance & incentive.
 export const salaryReceived = (row) => salaryNet(row).net + (row.allowance || 0) + (row.incentive || 0);
 
-// Running total take-home earned, up to and including the given month (yyyy-mm).
-export const accumulatedIncome = (mKey) =>
-  db.salary.filter((r) => monthKey(r.pay_date) <= mKey).reduce((a, r) => a + salaryReceived(r), 0);
+// Total take-home earned across a month range (yyyy-mm, inclusive; null = open end).
+export const accumulatedIncome = (fromKey, toKey) =>
+  db.salary
+    .filter((r) => { const k = monthKey(r.pay_date); return (!fromKey || k >= fromKey) && (!toKey || k <= toKey); })
+    .reduce((a, r) => a + salaryReceived(r), 0);
+
+// Earliest / latest month that has a salary entry.
+export function incomeMonthBounds() {
+  const keys = db.salary.map((s) => monthKey(s.pay_date)).sort();
+  return { first: keys[0] || null, last: keys[keys.length - 1] || null };
+}
 
 export function monthlySummary(mKey) {
   const inMonth = (d) => monthKey(d) === mKey;
