@@ -25,6 +25,7 @@ export function render(root, ctx) {
   const kpis = el("div.kpi-grid");
   kpis.append(
     kpi("Net income", s.netIncome, money, `${s.salaryRows.length} cutoff${s.salaryRows.length === 1 ? "" : "s"} recorded`, { feature: true, go: "salary" }),
+    kpi("Total income", DB.accumulatedIncome(m), money, `earned through ${fmtMonth(m + "-01")}`, { go: "salary" }),
     kpi("Expenses", s.expenseTotal, money, `${s.monthExpenses.length} transactions`, { go: "expenses" }),
     kpi("Saved", s.savedThisMonth, money, s.savedThisMonth >= 0 ? "added this month" : "net withdrawal", { go: "savings" }),
     kpi("Left over", s.leftOver, money, s.leftOver >= 0 ? "after spend & savings" : "over budget", { negative: s.leftOver < 0, go: "expenses" }),
