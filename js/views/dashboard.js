@@ -1,6 +1,6 @@
 import { el, toast } from "../lib/ui.js";
 import { icons } from "../lib/icons.js";
-import { money, money0, moneySigned, pct, fmtMonth } from "../lib/format.js";
+import { money, money0, pct, fmtMonth } from "../lib/format.js";
 import * as DB from "../data.js";
 import { donut, bars, line, CAT_COLORS } from "../charts.js";
 import { openExportMenu } from "../export.js";
@@ -20,12 +20,11 @@ export function render(root, ctx) {
   const exportBtn = el("button.btn.btn-ghost", { type: "button", title: "Export to a spreadsheet", html: `${icons.download}<span>Export</span>`, onClick: openExportMenu });
   root.append(pageHead("Dashboard", `Your money in ${fmtMonth(m + "-01")}`, [monthNav(ctx), exportBtn]));
 
-  // Carry-over pill — free cash that followed forward from last month.
-  if (Math.round(s.carriedOver * 100) !== 0) {
-    const pos = s.carriedOver >= 0;
+  // Accumulated net income to date (running total of take-home).
+  if (s.accumulatedNet > 0) {
     root.append(el("div.carryover", {}, [
-      el(`span.chip.${pos ? "solid-pos" : "solid-neg"}`, { html: `<span class="dot"></span>Carried over ${moneySigned(s.carriedOver)}` }),
-      el("span.faint", { style: { fontSize: "var(--text-sm)" }, text: `${money(s.available)} available this month` }),
+      el("span.chip.solid-pos", { html: `<span class="dot"></span>Accumulated net income ${money(s.accumulatedNet)}` }),
+      el("span.faint", { style: { fontSize: "var(--text-sm)" }, text: `total take-home to date` }),
     ]));
   }
 
